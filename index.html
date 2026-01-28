@@ -635,7 +635,7 @@
 
         window.openPopup = (url) => {
             if (!url) return;
-            const w = 1100; const h = 800;
+            const w = 500; const h = 800;
             const left = (screen.width/2)-(w/2); const top = (screen.height/2)-(h/2);
             window.open(url, '_blank', `toolbar=no, location=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=${w}, height=${h}, top=${top}, left=${left}`);
         };
