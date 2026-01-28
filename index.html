@@ -1,0 +1,897 @@
+
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Cuidado - Inteligência FNW</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #F8FAFC;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+        .category-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .category-btn.active {
+            border-color: #334155;
+            background-color: #f8fafc;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+        }
+        .tab-btn {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background-color: #334155;
+            color: white;
+        }
+        .target-btn {
+            border: 2px solid #f1f5f9;
+            color: #64748b;
+        }
+        .target-btn.active {
+            background-color: #334155;
+            color: white;
+            border-color: #334155;
+        }
+        .tab-count {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 9px;
+            margin-left: 5px;
+        }
+        .shake-horizontal { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .task-item {
+            transition: all 0.2s;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .task-item:hover {
+            background-color: #f8fafc;
+        }
+        /* Visualização Focal */
+        .pillar-card-dimmed {
+            opacity: 0.45;
+            filter: grayscale(0.9);
+            transition: all 0.5s ease;
+        }
+        .pillar-card-active {
+            opacity: 1;
+            filter: grayscale(0);
+            transition: all 0.5s ease;
+            cursor: pointer;
+        }
+        .pillar-card-active:hover {
+            transform: translateY(-5px);
+        }
+        /* Destaque de Estágio Correspondente */
+        .stage-highlight {
+            border: 2px solid #6366f1 !important;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+        }
+        /* Janela Auxiliar Lateral Estilo Cockpit */
+        #auxiliaryWindow {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(100%);
+            width: 45%; 
+        }
+        #auxiliaryWindow.open {
+            transform: translateX(0);
+        }
+        .web-view-iframe {
+            width: 100%;
+            height: calc(100% - 130px);
+            border: none;
+            background: white;
+        }
+        .main-with-sidebar {
+            margin-right: 45%;
+        }
+        .open-window-btn {
+            padding: 4px 10px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            color: white;
+            background-color: #6366f1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+        }
+        .open-window-btn:hover {
+            background-color: #4f46e5;
+            transform: scale(1.05);
+        }
+        .status-led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-active { background-color: #334155; width: 24px; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 overflow-x-hidden">
+
+    <div id="mainWrapper" class="w-full transition-all duration-500">
+        <div id="mainContainer" class="w-full p-4 md:p-6 pt-2 space-y-4">
+            
+            <!-- HEADER -->
+            <header class="bg-[#334155] text-white p-4 rounded-[2rem] shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4 font-bold">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white p-1 rounded-xl w-9 h-9 flex items-center justify-center overflow-hidden font-bold">
+                        <img src="https://d1yei2z3i6k35z.cloudfront.net/3119789/6621e93e3f3ae_FNWfreenatstoreLogodownload.jpg" alt="Logo FNW" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <div class="text-left font-bold">
+                        <h4 id="footerAppTitle" class="text-xs font-bold text-white">Inteligência Organizacional</h4>
+                        <span id="cloudIndicator" class="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            <span id="cloudStatusText">Nuvem Sincronizada</span>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 font-bold font-bold font-bold font-bold font-bold">
+                    <button onclick="window.loadExampleData()" class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold border border-emerald-600/30 font-bold font-bold">✨ Exemplos</button>
+                    <button onclick="window.saveData()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold font-bold font-bold">Backup JSON</button>
+                    <button onclick="window.loadData()" class="bg-white hover:bg-slate-100 text-slate-800 px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold font-bold font-bold">Importar</button>
+                </div>
+            </header>
+
+            <!-- NAVIGATION -->
+            <div class="flex flex-col lg:flex-row justify-between items-center gap-4 border-b border-slate-100 pb-3 font-bold font-bold font-bold">
+                <nav class="flex flex-wrap justify-center gap-1 p-1 bg-slate-200/50 rounded-2xl w-fit font-bold font-bold">
+                    <button id="tabProspec" onclick="window.switchTab('prospec')" class="tab-btn active px-3 py-2 rounded-xl text-xs transition-all flex items-center font-bold">Prospecção <span id="count-tab-prospec" class="tab-count font-bold font-bold">0</span></button>
+                    <button id="tabAtivacao" onclick="window.switchTab('ativacao')" class="tab-btn px-4 py-2 rounded-xl text-xs transition-all flex items-center font-bold font-bold font-bold">Ativação <span id="count-tab-ativacao" class="tab-count font-bold font-bold font-bold">0</span></button>
+                    <button id="tabImplem" onclick="window.switchTab('implem')" class="tab-btn px-3 py-2 rounded-xl text-xs transition-all flex items-center font-bold font-bold font-bold">Implementação <span id="count-tab-implem" class="tab-count font-bold font-bold font-bold">0</span></button>
+                    <button id="tabGestao" onclick="window.switchTab('gestao')" class="tab-btn px-3 py-2 rounded-xl text-xs transition-all flex items-center font-bold font-bold font-bold font-bold font-bold">Gestão <span id="count-tab-gestao" class="tab-count font-bold font-bold font-bold">0</span></button>
+                    <button id="tabTodos" onclick="window.switchTab('todos')" class="tab-btn px-3 py-2 rounded-xl text-xs transition-all border-l border-slate-300 ml-1 pl-3 font-bold font-bold font-bold font-bold">Todos <span id="count-tab-todos" class="tab-count font-bold font-bold font-bold">0</span></button>
+                </nav>
+
+                <div class="flex flex-col items-center lg:items-end gap-1 font-bold font-bold font-bold">
+                    <h1 id="displayUserName" class="text-sm font-bold text-slate-900 leading-none">Bem-vinda!</h1>
+                    <button onclick="window.openTutorial()" class="text-indigo-600 font-bold text-[9px] hover:underline font-bold font-bold font-bold">✨ Como usar?</button>
+                </div>
+            </div>
+
+            <!-- CAPTURA E STATUS LEDS -->
+            <section class="space-y-4 bg-white/50 p-5 rounded-[2.5rem] border border-slate-100 font-bold">
+                <div class="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white/40 p-3 rounded-[2rem] border border-slate-100/50 shadow-sm font-bold">
+                    <div class="flex items-center gap-3 w-full lg:w-auto font-bold font-bold">
+                        <button onclick="window.openItemModal('new')" class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-indigo-700 shadow-lg shrink-0 font-bold text-xl font-bold font-bold font-bold">+</button>
+                        <div class="flex flex-col flex-grow md:min-w-[280px] font-bold">
+                            <label id="labelDropdown" class="text-[9px] font-bold text-slate-400 uppercase ml-3 font-bold font-bold">Contexto Selecionado</label>
+                            <select id="selectComunidade" onchange="window.onProjectSelectionChange()" class="w-full bg-white border border-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 font-bold font-bold"></select>
+                        </div>
+                        <button onclick="window.openItemModal('edit')" class="bg-white text-slate-400 w-10 h-10 rounded-xl border flex items-center justify-center hover:text-indigo-600 font-bold">
+                            <svg class="w-5 h-5 font-bold font-bold font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24 font-bold font-bold"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                    </div>
+                    
+                    <div id="statsBar" class="flex items-center gap-4 lg:gap-6 pr-4 shrink-0 font-bold text-[9px] uppercase tracking-wider text-slate-400">
+                        <div class="flex items-center gap-2 font-bold font-bold font-bold font-bold">
+                            <span class="status-led bg-emerald-500 font-bold font-bold font-bold font-bold"></span>
+                            <span>Ativas: <strong id="countAtivas" class="text-slate-800 ml-1 font-bold font-bold font-bold font-bold font-bold">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2 border-l border-slate-200 pl-4 font-bold font-bold font-bold font-bold">
+                            <span class="status-led bg-amber-400 font-bold font-bold font-bold font-bold font-bold"></span>
+                            <span>Stand by: <strong id="countStandBy" class="text-slate-800 ml-1 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2 border-l border-slate-200 pl-4 font-bold font-bold font-bold font-bold">
+                            <span class="status-led bg-slate-200 font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></span>
+                            <span>Vagas: <strong id="countVagos" class="text-indigo-600 ml-1 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">7</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="categoryContainer" class="grid grid-cols-2 md:grid-cols-4 gap-3 font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <button onclick="window.setCategoryByIndex(0)" class="category-btn active flex flex-col items-center p-4 rounded-3xl border bg-white card-shadow group font-bold font-bold font-bold font-bold">
+                        <span id="icon-0" class="text-xl mb-1">📢</span><span id="label-0" class="text-[9px] uppercase tracking-widest text-slate-400 font-bold font-bold font-bold">Pilar 1</span>
+                    </button>
+                    <button onclick="window.setCategoryByIndex(1)" class="category-btn flex flex-col items-center p-4 rounded-3xl border bg-white card-shadow group font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <span id="icon-1" class="text-xl mb-1 font-bold font-bold font-bold font-bold">💡</span><span id="label-1" class="text-[9px] uppercase tracking-widest text-slate-400 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Pilar 2</span>
+                    </button>
+                    <button onclick="window.setCategoryByIndex(2)" class="category-btn flex flex-col items-center p-4 rounded-3xl border bg-white card-shadow group font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <span id="icon-2" class="text-xl mb-1 font-bold font-bold font-bold font-bold font-bold font-bold">❤️</span><span id="label-2" class="text-[9px] uppercase tracking-widest text-slate-400 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Pilar 3</span>
+                    </button>
+                    <button onclick="window.setCategoryByIndex(3)" class="category-btn flex flex-col items-center p-4 rounded-3xl border bg-white card-shadow group font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <span id="icon-3" class="text-xl mb-1 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">🚀</span><span id="label-3" class="text-[9px] uppercase tracking-widest text-slate-400 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Pilar 4</span>
+                    </button>
+                </div>
+
+                <div id="taskInputWrapper" class="bg-white p-1.5 rounded-[2rem] card-shadow border flex items-center w-full max-w-3xl mx-auto font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <input id="inputTarefa" type="text" placeholder="O que vamos fazer agora?" class="flex-grow bg-transparent px-5 py-3 outline-none font-medium font-bold font-bold font-bold font-bold">
+                    <button onclick="window.adicionarTarefa()" class="bg-slate-800 text-white w-12 h-12 rounded-full font-bold text-xl hover:bg-slate-700 font-bold font-bold font-bold">+</button>
+                </div>
+            </section>
+
+            <!-- FOCO SECTION -->
+            <section class="space-y-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <div class="flex justify-between items-center px-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-bold font-bold font-bold font-bold font-bold font-bold font-bold">O Teu Foco Agora</h3>
+                    <span id="contadorFocoGlobal" class="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[9px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">0 Tarefas</span>
+                </div>
+                <div id="focoHoje" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
+            </section>
+
+            <!-- PANORAMA -->
+            <section id="communityStatusSection" class="space-y-4 pt-2 font-bold border-t border-slate-100 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <p id="panoramaLabel" class="text-[8px] font-bold text-slate-300 uppercase tracking-[0.2em] text-center font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Panorama Geral</p>
+                <div id="communityList" class="flex justify-center flex-wrap gap-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- WINDOW AUXILIAR (WEB DRAWER) -->
+    <div id="auxiliaryWindow" class="fixed top-0 right-0 h-full bg-white z-[200] shadow-2xl border-l border-slate-200 overflow-hidden font-bold">
+        <div class="bg-slate-900 text-white p-4 flex items-center justify-between font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <div class="flex items-center gap-3 overflow-hidden font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <span class="text-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">🌐</span>
+                <span id="auxWindowTitle" class="text-[10px] uppercase font-bold tracking-widest truncate font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Acesso Externo</span>
+            </div>
+            <div class="flex gap-2">
+                <a id="externalLinkBtn" href="#" target="_blank" class="p-2 hover:bg-slate-700 rounded-lg text-white font-bold font-bold font-bold font-bold font-bold font-bold" title="Abrir em Nova Aba">
+                    <svg class="w-4 h-4 font-bold font-bold font-bold font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24 font-bold font-bold font-bold font-bold"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </a>
+                <button onclick="window.expandWebPreview()" class="p-2 hover:bg-slate-700 rounded-lg font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">⤢</button>
+                <button onclick="window.closeWebPreview()" class="p-2 hover:bg-rose-600 rounded-lg font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">✕</button>
+            </div>
+        </div>
+        <iframe id="auxWebIframe" src="about:blank" class="web-view-iframe font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></iframe>
+        
+        <div id="iframeAlert" class="hidden p-8 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center h-full">
+            <div class="w-20 h-20 bg-indigo-50 flex items-center justify-center rounded-3xl mb-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <span class="text-4xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">🔐</span>
+            </div>
+            <p class="text-xs text-slate-500 font-bold leading-relaxed max-w-[200px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Este site bloqueia a visualização interna por segurança.</p>
+            <button id="iframeFallbackBtn" onclick="window.openPopup(this.getAttribute('data-url'))" class="bg-indigo-600 text-white px-8 py-4 rounded-2xl text-[10px] uppercase font-black shadow-xl hover:bg-indigo-700 transition-all font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Abrir em Janela Auxiliar</button>
+        </div>
+    </div>
+
+    <!-- MODAL TUTORIAL -->
+    <div id="tutorialModal" class="fixed inset-0 z-[150] flex items-center justify-center p-4 hidden modal-overlay text-slate-800 font-bold">
+        <div class="bg-white w-full max-w-lg rounded-[3rem] p-10 card-shadow relative animate-in zoom-in duration-300 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <button onclick="window.closeTutorial()" class="absolute top-8 right-8 text-slate-300 hover:text-slate-500 font-bold text-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">✕</button>
+            <div id="tutorialContent" class="space-y-6 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+            <div class="mt-10 flex flex-col gap-6 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <div id="tutorialDots" class="flex justify-center gap-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+                <div class="flex justify-between items-center gap-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <button id="prevTutorialBtn" onclick="window.prevTutorialPage()" class="px-6 py-3 rounded-xl text-slate-400 font-bold opacity-0 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Anterior</button>
+                    <button id="nextTutorialBtn" onclick="window.nextTutorialPage()" class="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Próximo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALHE PILAR -->
+    <div id="pillarDetailModal" class="fixed inset-0 z-[120] flex items-center justify-center p-4 hidden modal-overlay text-slate-800 font-bold">
+        <div class="bg-white w-full max-w-2xl rounded-[3rem] p-10 card-shadow relative font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <button onclick="window.closePillarDetail()" class="absolute top-8 right-8 text-slate-300 hover:text-slate-500 font-bold text-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">✕</button>
+            <div class="flex items-center gap-4 mb-8 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <div id="pillarDetailIcon" class="text-4xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+                <div>
+                    <h2 id="pillarDetailTitle" class="text-2xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></h2>
+                    <p id="pillarDetailProject" class="text-[10px] text-indigo-500 uppercase tracking-widest font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></p>
+                </div>
+            </div>
+            <div id="pillarDetailTasks" class="space-y-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+            <button onclick="window.closePillarDetail()" class="w-full mt-10 bg-slate-900 text-white py-4 rounded-2xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Voltar ao Monitor</button>
+        </div>
+    </div>
+
+    <!-- MODAL TASK CONFIG -->
+    <div id="taskModal" class="fixed inset-0 z-[130] flex items-center justify-center p-4 hidden modal-overlay text-slate-800 font-bold">
+        <div class="bg-white w-full max-w-md rounded-[3rem] p-8 card-shadow relative font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <h2 class="text-lg font-bold mb-6 text-center font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Configuração da Ação</h2>
+            <div class="space-y-6 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <div>
+                    <label class="text-[10px] text-slate-400 uppercase font-bold block mb-1 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">O que vamos fazer?</label>
+                    <textarea id="taskModalInput" rows="3" class="w-full bg-slate-50 rounded-xl px-5 py-4 outline-none font-bold text-sm border border-slate-100 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></textarea>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <label class="text-[10px] text-slate-600 uppercase font-extrabold block mb-3 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Mover para Pilar</label>
+                    <select id="taskPillarSelect" class="w-full bg-white rounded-xl px-4 py-3 text-xs font-bold outline-none border border-slate-200 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></select>
+                </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <label class="text-[10px] text-slate-600 uppercase font-extrabold block mb-3 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Gerir Links de Apoio</label>
+                    <div class="flex gap-2 mb-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <input id="taskLinkInput" type="text" placeholder="https://..." class="flex-grow bg-white rounded-xl px-4 py-3 text-xs font-bold outline-none border border-slate-200 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <button onclick="window.addLinkToCurrentTask()" class="bg-indigo-600 text-white px-4 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition-all font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">+</button>
+                    </div>
+                    <div id="taskModalLinksList" class="space-y-2 max-h-32 overflow-y-auto pr-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"></div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3 mt-8 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <button onclick="window.confirmEditTask()" class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold hover:bg-slate-800 shadow-lg font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Guardar Alterações</button>
+                <button onclick="window.closeTaskModal()" class="w-full py-3 rounded-xl text-slate-400 font-bold hover:bg-slate-50 transition-all font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ITEM CONFIG -->
+    <div id="itemModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden modal-overlay text-slate-800 font-bold">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-8 card-shadow relative animate-in zoom-in duration-200 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <h2 id="modalTitle" class="text-lg font-bold mb-4 text-center font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Configurações</h2>
+            <div class="space-y-4 mb-6 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Mover Para a Fase:</label>
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-slate-50 rounded-2xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <button id="targetProspec" onclick="window.setNewItemTarget('prospec')" class="target-btn py-2 rounded-xl font-bold text-[10px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Prospecção</button>
+                        <button id="targetAtivacao" onclick="window.setNewItemTarget('ativacao')" class="target-btn py-2 rounded-xl font-bold text-[10px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Ativação</button>
+                        <button id="targetImplem" onclick="window.setNewItemTarget('implem')" class="target-btn py-2 rounded-xl font-bold text-[10px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Implementação</button>
+                        <button id="targetGestao" onclick="window.setNewItemTarget('gestao')" class="target-btn py-2 rounded-xl font-bold text-[10px] font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Gestão</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Tipo</label>
+                    <select id="modalTypeSelect" class="w-full bg-slate-50 rounded-xl px-4 py-2 outline-none font-bold border border-slate-100 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <option value="Assessoria">Assessoria</option>
+                        <option value="Comunidade">Comunidade</option>
+                        <option value="Mentoria">Mentoria</option>
+                        <option value="Consultoria">Consultoria</option>
+                        <option value="Parceria">Parceria</option>
+                        <option value="Projeto">Projeto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Nome</label>
+                    <input id="modalInput" type="text" class="w-full bg-slate-50 rounded-xl px-4 py-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold outline-none border border-slate-100">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Situação</label>
+                    <select id="modalStatusSelect" class="w-full bg-slate-50 rounded-xl px-4 py-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold outline-none border border-slate-100 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <option value="Ativa">Ativa</option><option value="Stand by">Stand by</option><option value="Suspensa">Suspensa</option><option value="Cancelada">Cancelada</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex flex-col gap-2 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                <button id="saveItemBtn" class="bg-slate-900 text-white py-3 rounded-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Confirmar</button>
+                <div id="editActions" class="flex gap-2">
+                    <button id="archiveItemBtn" class="flex-grow bg-slate-100 py-3 rounded-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Arquivar</button>
+                    <button id="deleteItemBtn" onclick="window.handleDeleteClick()" class="bg-rose-50 text-rose-600 px-4 rounded-xl font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">🗑️</button>
+                </div>
+                <div id="deleteWarning" class="hidden bg-rose-600 text-white p-4 rounded-xl text-center font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold"><button id="confirmDeleteBtn" class="w-full font-bold uppercase tracking-wider font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Remoção Definitiva</button></div>
+                <button onclick="window.closeItemModal()" class="text-slate-400 py-2 font-bold hover:text-slate-600 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER MODAL -->
+    <div id="userModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay text-slate-800 font-bold">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 card-shadow relative animate-in zoom-in duration-300 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+            <div class="text-center space-y-6">
+                <div class="flex justify-center font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <div class="bg-slate-50 p-4 rounded-3xl w-24 h-24 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                        <img src="https://d1yei2z3i6k35z.cloudfront.net/3119789/6621e93e3f3ae_FNWfreenatstoreLogodownload.jpg" alt="Logo FNW">
+                    </div>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Cockpit de Cuidado</h2>
+                <p class="text-sm text-slate-400 font-medium font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Boas-vindas. Como gostaria de ser chamada hoje?</p>
+                <div class="space-y-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">
+                    <input id="userNameInput" type="text" placeholder="Seu nome..." class="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-700 font-bold text-center font-bold font-bold font-bold font-bold font-bold">
+                    <button onclick="window.confirmUserName()" class="w-full bg-black text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold font-bold">Entrar no Cockpit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE MODULE -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-monitor';
+
+        window.db = db; window.auth = auth; window.appId = appId; window.user = null;
+
+        onAuthStateChanged(auth, (u) => {
+            window.user = u;
+            if (u) { updateCloudIndicator('sync', 'Nuvem Ativa'); loadFromCloud(); }
+            else { signInAnonymously(auth); }
+        });
+
+        window.triggerCloudSave = () => {
+            if (!window.user) return;
+            updateCloudIndicator('saving', 'Sincronizando...');
+            setTimeout(async () => {
+                try {
+                    const userDoc = doc(db, 'artifacts', appId, 'users', window.user.uid, 'state', 'main');
+                    await setDoc(userDoc, { listas: window.listas, tarefasGlobal: window.tarefasGlobal, activeUserName: window.activeUserName });
+                    updateCloudIndicator('sync', 'Dados Seguros');
+                } catch(e) { updateCloudIndicator('error', 'Erro de Conexão'); }
+            }, 500);
+        };
+
+        window.loadFromCloud = async () => {
+            const userDoc = doc(db, 'artifacts', appId, 'users', window.user.uid, 'state', 'main');
+            const snap = await getDoc(userDoc);
+            if (snap.exists()) {
+                const data = snap.data();
+                window.listas = data.listas || { prospec: [], ativacao: [], implem: [], gestao: [] };
+                window.tarefasGlobal = data.tarefasGlobal || [];
+                window.activeUserName = data.activeUserName || "";
+                if (window.activeUserName) {
+                    const dEl = document.getElementById('displayUserName');
+                    if (dEl) dEl.innerText = `Olá, ${window.activeUserName}!`;
+                    document.getElementById('userModal')?.classList.add('hidden');
+                }
+                window.switchTab(window.currentTab);
+            }
+        };
+
+        function updateCloudIndicator(status, text) {
+            const el = document.getElementById('cloudIndicator');
+            const txt = document.getElementById('cloudStatusText');
+            if(!el || !txt) return;
+            txt.innerText = text;
+            el.className = `flex items-center gap-1.5 text-[10px] font-bold ${status === 'sync' ? 'text-emerald-400' : 'text-amber-400'}`;
+        }
+    </script>
+
+    <script>
+        // CORE REINFORCED
+        window.currentTab = 'prospec'; window.listas = { prospec: [], ativacao: [], implem: [], gestao: [] };
+        window.tarefasGlobal = []; window.activeUserName = ""; window.tempLinks = [];
+        window.editingTaskId = null; window.newItemTarget = 'prospec';
+        let currentTutorialPage = 0;
+
+        const tutorialPages = [
+            { 
+                title: "Cockpit de Inteligência FNW", 
+                icon: "🧘‍♀️", 
+                text: "Bem-vinda! Este monitor protege o seu cuidado através de um pipeline dinâmico focado no que importa agora. Sincronização automática ativa." 
+            },
+            { 
+                title: "Pipelines de Energia", 
+                icon: "🚀", 
+                text: "Organize o fluxo em fases: <b>Prospecção</b> (Pipeline), <b>Ativação</b> (Acolhimento), <b>Implementação</b> (Operação) e <b>Gestão</b> (Suporte/Métricas)." 
+            },
+            { 
+                title: "Visualização Focal", 
+                icon: "🎯", 
+                text: "A seção 'Seu Foco Agora' destaca apenas os pilares ativos. Cards vazios ficam 'apagados' para reduzir o ruído visual e ajudá-la a focar nas ações pendentes." 
+            },
+            { 
+                title: "Gestão de Ações", 
+                icon: "✍️", 
+                text: "Ao criar tarefas, você pode adicionar links automáticos. Ao 'Editar' uma tarefa, é possível <b>Mover entre Pilares</b> e gerir referências rápidas." 
+            },
+            { 
+                title: "Cockpit Lateral (Apoio)", 
+                icon: "🌐", 
+                text: "Clique em <b>'VER'</b> numa tarefa com link para abrir o painel lateral. Se o site for protegido (ex: NotebookLM), use o botão azul de <b>'Janela Auxiliar'</b> para um pop-up independente." 
+            },
+            { 
+                title: "Visão Global e Navegação", 
+                icon: "🌍", 
+                text: "Na aba <b>'Todos'</b>, utilize o seletor agrupado por fases. Ao selecionar um item, a borda do estágio correspondente (ex: Ativação) acenderá para orientar o seu olhar." 
+            },
+            { 
+                title: "Backup e Segurança", 
+                icon: "💾", 
+                text: "Além da nuvem, você pode usar o botão <b>'Backup JSON'</b> para guardar uma cópia local de todos os seus dados e tarefas." 
+            }
+        ];
+
+        const typePillars = {
+            'Assessoria': [ { nome: 'ESTRATÉGIA', icone: '🎯' }, { nome: 'OPERAÇÃO', icone: '⚙️' }, { nome: 'SUPORTE', icone: '💬' }, { nome: 'MÉTRICAS', icone: '📊' } ],
+            'Comunidade': [ { nome: 'ACOLHIMENTO', icone: '🏠' }, { nome: 'CONEXÃO', icone: '🤝' }, { nome: 'CONHECIMENTO', icone: '🔍' }, { nome: 'CAPACITAÇÃO', icone: '🧠' } ],
+            'Mentoria': [ { nome: 'DIAGNÓSTICO', icone: '📋' }, { nome: 'PLANO AÇÃO', icone: '🗺️' }, { nome: 'ENCONTRO', icone: '👥' }, { nome: 'FEEDBACK', icone: '✨' } ],
+            'Consultoria': [ { nome: 'LEVANTAMENTO', icone: '🔎' }, { nome: 'ANÁLISE', icone: '🧪' }, { nome: 'RECOMENDAÇÃO', icone: '💡' }, { nome: 'RELATÓRIO', icone: '📄' } ],
+            'Parceria': [ { nome: 'ALINHAMENTO', icone: '🤝' }, { nome: 'COOPERAÇÃO', icone: '🔄' }, { nome: 'VALOR', icone: '💎' }, { nome: 'EXPANSÃO', icone: '🌍' } ],
+            'Pipeline': [ { nome: 'ATENÇÃO', icone: '📢' }, { nome: 'INTERESSE', icone: '💡' }, { nome: 'DESEJO', icone: '❤️' }, { nome: 'AÇÃO', icone: '🚀' } ],
+            'Default': [ { nome: 'PLANEAMENTO', icone: '📅' }, { nome: 'EXECUÇÃO', icone: '⚡' }, { nome: 'REVISÃO', icone: '🔄' }, { nome: 'ENTREGA', icone: '📦' } ]
+        };
+
+        const statusIcons = { "Ativa": "🟢", "Stand by": "🟡", "Suspensa": "⚪", "Cancelada": "🔴" };
+        const tabLabels = { prospec: 'Prospecção', ativacao: 'Ativação', implem: 'Implementação', gestao: 'Gestão', todos: 'Ecossistema Geral' };
+
+        window.switchTab = (tab) => {
+            window.currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('active', b.id.toLowerCase().includes(tab.toLowerCase()));
+                b.classList.remove('stage-highlight');
+            });
+            
+            const currentListItems = tab === 'todos' ? Object.values(window.listas).flat() : window.listas[tab];
+            populateSelect(currentListItems || []);
+            
+            window.updateCategoryButtons(); 
+            renderFoco(); 
+            renderSaude(); 
+            window.updateStats();
+        };
+
+        function populateSelect(items) {
+            const s = document.getElementById('selectComunidade');
+            if(!s) return;
+            s.innerHTML = '<option value="null">Selecione o Contexto...</option>';
+            items.filter(i => i && !i.arquivada).forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i.nome; opt.innerText = `${statusIcons[i.status] || '🔹'} [${i.tipo}] ${i.nome}`;
+                s.appendChild(opt);
+            });
+        }
+
+        window.onProjectSelectionChange = () => { 
+            const selectedNome = document.getElementById('selectComunidade').value;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('stage-highlight'));
+
+            if (window.currentTab === 'todos' && selectedNome !== "null") {
+                let faseOrigem = "";
+                for (let k in window.listas) {
+                    if (window.listas[k].some(p => p.nome === selectedNome)) {
+                        faseOrigem = k;
+                        break;
+                    }
+                }
+                if (faseOrigem) {
+                    const targetId = 'tab' + faseOrigem.charAt(0).toUpperCase() + faseOrigem.slice(1);
+                    const targetBtn = document.getElementById(targetId);
+                    if (targetBtn) targetBtn.classList.add('stage-highlight');
+                }
+            }
+
+            window.updateCategoryButtons(); 
+            renderFoco(); 
+        };
+
+        window.updateCategoryButtons = () => {
+            const sEl = document.getElementById('selectComunidade');
+            if (!sEl) return;
+            const context = sEl.value;
+            let pils = typePillars.Pipeline;
+            if(context !== "null") {
+                const p = Object.values(window.listas).flat().find(x => x && x.nome === context);
+                pils = typePillars[p?.tipo] || (window.currentTab === 'prospec' ? typePillars.Pipeline : typePillars.Default);
+            }
+            pils.forEach((pillar, index) => {
+                const lEl = document.getElementById(`label-${index}`);
+                const iEl = document.getElementById(`icon-${index}`);
+                if (lEl) lEl.innerText = pillar.nome;
+                if (iEl) iEl.innerText = pillar.icone;
+            });
+            window.setCategoryByIndex(0);
+        };
+
+        window.setCategoryByIndex = (idx) => {
+            const context = document.getElementById('selectComunidade').value;
+            let pils = typePillars.Pipeline;
+            if(context !== "null") {
+                const p = Object.values(window.listas).flat().find(x => x && x.nome === context);
+                pils = typePillars[p?.tipo] || (window.currentTab === 'prospec' ? typePillars.Pipeline : typePillars.Default);
+            }
+            window.categoriaSelecionada = pils[idx];
+            document.querySelectorAll('.category-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+        };
+
+        window.adicionarTarefa = () => {
+            const input = document.getElementById('inputTarefa');
+            const context = document.getElementById('selectComunidade').value;
+            if(!input.value.trim() || context === "null") { document.getElementById('taskInputWrapper').classList.add('shake-horizontal'); setTimeout(()=>document.getElementById('taskInputWrapper').classList.remove('shake-horizontal'), 500); return; }
+            const links = input.value.match(/(https?:\/\/[^\s]+)/g) || [];
+            window.tarefasGlobal.push({ id: Date.now(), titulo: input.value, contexto: context, categoria: window.categoriaSelecionada.nome, icone: window.categoriaSelecionada.icone, links: links, tab: window.currentTab });
+            input.value = ''; renderFoco(); window.triggerCloudSave();
+        };
+
+        window.removerTarefa = (id) => { 
+            window.tarefasGlobal = window.tarefasGlobal.filter(t => t.id !== id); 
+            renderFoco(); window.triggerCloudSave(); 
+        };
+
+        function renderFoco() {
+            const container = document.getElementById('focoHoje');
+            const context = document.getElementById('selectComunidade').value;
+            if(!container) return;
+            if(context === "null") { container.innerHTML = '<div class="col-span-full py-10 text-center text-slate-300 italic font-bold">Selecione um contexto para focar.</div>'; return; }
+            const project = Object.values(window.listas).flat().find(p => p && p.nome === context);
+            const pils = typePillars[project?.tipo] || (window.currentTab === 'prospec' ? typePillars.Pipeline : typePillars.Default);
+            container.innerHTML = ''; let total = 0;
+            pils.forEach(p => {
+                const tasks = window.tarefasGlobal.filter(t => t.contexto === context && t.categoria === p.nome);
+                total += tasks.length;
+                const hasTasks = tasks.length > 0;
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-3xl card-shadow border-t-4 ${getFunnelColor(p.nome)} flex flex-col overflow-hidden font-bold ${!hasTasks ? 'pillar-card-dimmed' : 'pillar-card-active'}`;
+                if(hasTasks) card.onclick = () => window.openPillarDetail(p.nome);
+                let tasksHtml = tasks.map(t => {
+                    const lks = t.links || [];
+                    return `<div class="px-4 py-3 text-[11px] text-slate-700 border-b border-slate-50 flex items-center justify-between group/task font-bold">
+                        <span class="truncate flex-grow font-bold">${t.titulo}</span>
+                        ${lks.length > 0 ? `<button onclick="event.stopPropagation(); window.openWebPreview('${lks[0]}')" class="open-window-btn ml-2">VER ⧉</button>` : ''}
+                    </div>`;
+                }).join('');
+                card.innerHTML = `<div class="bg-slate-50/50 p-3 flex justify-between border-b items-center font-bold font-bold font-bold font-bold"><span class="text-[10px] uppercase font-extrabold font-bold font-bold">${p.icone} ${p.nome}</span><span class="text-[9px] bg-slate-200 px-1.5 py-0.5 rounded-full font-bold">${tasks.length}/3</span></div><div class="flex flex-col">${tasksHtml || '<div class="p-4 text-[10px] text-slate-300 italic text-center font-bold">Limpo</div>'}</div>`;
+                container.appendChild(card);
+            });
+            const cEl = document.getElementById('contadorFocoGlobal');
+            if (cEl) cEl.innerText = `${total} Tarefa(s)`;
+        }
+
+        window.openPopup = (url) => {
+            if (!url) return;
+            const w = 1100; const h = 800;
+            const left = (screen.width/2)-(w/2); const top = (screen.height/2)-(h/2);
+            window.open(url, '_blank', `toolbar=no, location=no, status=no, menubar=no, scrollbars=yes, resizable=yes, width=${w}, height=${h}, top=${top}, left=${left}`);
+        };
+
+        window.openWebPreview = (url) => { 
+            const win = document.getElementById('auxiliaryWindow');
+            const iframe = document.getElementById('auxWebIframe');
+            const alertArea = document.getElementById('iframeAlert');
+            const fallbackBtn = document.getElementById('iframeFallbackBtn');
+            if(!win || !iframe || !alertArea || !fallbackBtn) return;
+            iframe.src = url; 
+            document.getElementById('externalLinkBtn').href = url;
+            fallbackBtn.setAttribute('data-url', url);
+            if(url.includes('notebooklm') || url.includes('google.com') || url.includes('notion.so')) {
+                alertArea.classList.remove('hidden'); iframe.classList.add('hidden');
+            } else {
+                alertArea.classList.add('hidden'); iframe.classList.remove('hidden');
+            }
+            win.classList.add('open');
+            document.getElementById('mainWrapper').classList.add('main-with-sidebar');
+        };
+
+        window.closeWebPreview = () => { 
+            document.getElementById('auxiliaryWindow').classList.remove('open'); 
+            document.getElementById('mainWrapper').classList.remove('main-with-sidebar');
+            document.getElementById('auxWebIframe').src = 'about:blank'; 
+        };
+
+        window.expandWebPreview = () => { 
+            const w = document.getElementById('auxiliaryWindow'); 
+            const isFull = w.style.width === '100%';
+            w.style.width = isFull ? '45%' : '100%'; 
+            if(isFull) document.getElementById('mainWrapper').classList.add('main-with-sidebar');
+            else document.getElementById('mainWrapper').classList.remove('main-with-sidebar');
+        };
+
+        window.openPillarDetail = (pName) => {
+            const context = document.getElementById('selectComunidade').value;
+            const tasks = window.tarefasGlobal.filter(t => t.contexto === context && t.categoria === pName);
+            const tEl = document.getElementById('pillarDetailTitle');
+            const pEl = document.getElementById('pillarDetailProject');
+            if (tEl) tEl.innerText = pName;
+            if (pEl) pEl.innerText = context;
+            const listEl = document.getElementById('pillarDetailTasks');
+            if(listEl) listEl.innerHTML = tasks.map(t => `<div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col gap-4 font-bold font-bold font-bold font-bold font-bold font-bold font-bold"><div class="flex justify-between items-start font-bold font-bold font-bold"><span>${t.titulo}</span><div class="flex gap-2 font-bold font-bold"><button onclick="window.editTaskFromPillar(${t.id})" class="text-indigo-500 text-xs font-bold px-3 py-1 bg-white rounded-lg border hover:bg-indigo-50 font-bold font-bold font-bold">Editar</button><button onclick="window.removerTarefa(${t.id}); window.closePillarDetail();" class="text-emerald-500 text-xs font-bold px-3 py-1 bg-white rounded-lg border hover:bg-emerald-50 font-bold font-bold font-bold font-bold font-bold">Concluir</button></div></div>${t.links && t.links.length > 0 ? `<div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200 font-bold">${t.links.map(l => `<button onclick="window.openWebPreview('${l}')" class="bg-white px-3 py-2 rounded-xl border text-[9px] text-indigo-600 shadow-sm flex items-center gap-1.5 font-bold hover:bg-indigo-50 font-bold font-bold font-bold">🌐 Abrir no Cockpit</button>`).join('')}</div>` : ''}</div>`).join('');
+            document.getElementById('pillarDetailModal')?.classList.remove('hidden');
+        };
+
+        window.editTaskFromPillar = (id) => {
+            const task = window.tarefasGlobal.find(x => x.id === id);
+            if(!task) return;
+            window.editingTaskId = id;
+            document.getElementById('taskModalInput').value = task.titulo;
+            window.tempLinks = [...(task.links || [])];
+            const selectPillar = document.getElementById('taskPillarSelect');
+            const context = document.getElementById('selectComunidade').value;
+            const project = Object.values(window.listas).flat().find(p => p && p.nome === context);
+            const pils = typePillars[project?.tipo] || (window.currentTab === 'prospec' ? typePillars.Pipeline : typePillars.Default);
+            if (selectPillar) {
+                selectPillar.innerHTML = pils.map(p => `<option value="${p.nome}">${p.icone} ${p.nome}</option>`).join('');
+                selectPillar.value = task.categoria;
+            }
+            window.renderTaskModalLinks();
+            document.getElementById('taskModal').classList.remove('hidden');
+            document.getElementById('pillarDetailModal').classList.add('hidden');
+        };
+
+        window.addLinkToCurrentTask = () => {
+            const input = document.getElementById('taskLinkInput');
+            let val = input.value.trim();
+            if(val) { 
+                if(!val.startsWith('http')) val = 'https://' + val;
+                window.tempLinks.push(val); 
+                input.value = ''; window.renderTaskModalLinks();
+            }
+        };
+
+        window.renderTaskModalLinks = () => {
+            const list = document.getElementById('taskModalLinksList');
+            if (list) list.innerHTML = window.tempLinks.map((l, i) => `<div class="bg-white p-2 rounded-lg flex justify-between items-center text-[10px] font-bold mb-1 border border-slate-200 font-bold font-bold font-bold font-bold font-bold"><span class="truncate max-w-[200px] text-indigo-500 font-bold">${l}</span><button onclick="window.tempLinks.splice(${i},1);window.renderTaskModalLinks()" class="text-rose-500 font-bold ml-2 underline font-bold font-bold font-bold">Eliminar</button></div>`).join('');
+        };
+
+        window.confirmEditTask = () => {
+            const t = window.tarefasGlobal.find(x => x.id === window.editingTaskId);
+            if(t) {
+                t.titulo = document.getElementById('taskModalInput').value.trim();
+                t.links = [...window.tempLinks];
+                const newPillarName = document.getElementById('taskPillarSelect').value;
+                const context = document.getElementById('selectComunidade').value;
+                const project = Object.values(window.listas).flat().find(p => p && p.nome === context);
+                const pils = typePillars[project?.tipo] || (window.currentTab === 'prospec' ? typePillars.Pipeline : typePillars.Default);
+                const newPillarObj = pils.find(p => p.nome === newPillarName);
+                if (newPillarObj) {
+                    t.categoria = newPillarObj.nome;
+                    t.icone = newPillarObj.icone;
+                }
+                renderFoco(); window.closeTaskModal(); window.triggerCloudSave();
+            }
+        };
+
+        window.openTutorial = () => {
+            currentTutorialPage = 0;
+            document.getElementById('tutorialModal')?.classList.remove('hidden');
+            renderTutorialContent();
+        };
+
+        window.closeTutorial = () => document.getElementById('tutorialModal').classList.add('hidden');
+
+        function renderTutorialContent() {
+            const page = tutorialPages[currentTutorialPage];
+            const content = document.getElementById('tutorialContent');
+            const dots = document.getElementById('tutorialDots');
+            const nextBtn = document.getElementById('nextTutorialBtn');
+            const prevBtn = document.getElementById('prevTutorialBtn');
+            if(!content || !dots || !nextBtn || !prevBtn) return;
+            content.innerHTML = `<div class="text-center space-y-4 font-bold font-bold font-bold"><span class="text-6xl block mb-6 font-bold font-bold font-bold">${page.icon}</span><h3 class="text-2xl font-bold text-slate-900">${page.title}</h3><p class="text-slate-500 leading-relaxed font-bold font-bold font-bold">${page.text}</p></div>`;
+            dots.innerHTML = tutorialPages.map((_, i) => `<div class="h-1.5 transition-all duration-300 ${i === currentTutorialPage ? 'dot-active w-8' : 'w-1.5 bg-slate-200'} rounded-full font-bold font-bold"></div>`).join('');
+            prevBtn.style.opacity = currentTutorialPage === 0 ? "0" : "1";
+            prevBtn.style.pointerEvents = currentTutorialPage === 0 ? "none" : "auto";
+            nextBtn.innerText = currentTutorialPage === tutorialPages.length - 1 ? "Entendido" : "Próximo";
+        }
+        window.nextTutorialPage = () => { if (currentTutorialPage < tutorialPages.length - 1) { currentTutorialPage++; renderTutorialContent(); } else { window.closeTutorial(); } };
+        window.prevTutorialPage = () => { if (currentTutorialPage > 0) { currentTutorialPage--; renderTutorialContent(); } };
+
+        window.confirmUserName = () => { 
+            const n = document.getElementById('userNameInput').value.trim(); 
+            if(n){ 
+                window.activeUserName = n; 
+                const dEl = document.getElementById('displayUserName');
+                if (dEl) dEl.innerText = `Olá, ${n}!`;
+                window.switchTab('prospec'); document.getElementById('userModal')?.classList.add('hidden'); window.triggerCloudSave(); 
+            } 
+        };
+
+        window.setNewItemTarget = (t) => { window.newItemTarget = t; document.querySelectorAll('.target-btn').forEach(b => b.classList.toggle('active', b.id.toLowerCase().includes(t.toLowerCase()))); };
+
+        window.openItemModal = (mode) => {
+            const m = document.getElementById('itemModal');
+            if(!m) return;
+            document.getElementById('editActions').classList.remove('hidden');
+            document.getElementById('deleteWarning').classList.add('hidden');
+            if(mode === 'new') {
+                document.getElementById('modalTitle').innerText = 'Cadastrar Novo';
+                document.getElementById('modalInput').value = '';
+                document.getElementById('editActions').classList.add('hidden');
+                window.setNewItemTarget(window.currentTab === 'todos' ? 'prospec' : window.currentTab);
+                document.getElementById('saveItemBtn').onclick = () => {
+                    const name = document.getElementById('modalInput').value.trim();
+                    if(!name) return;
+                    window.listas[window.newItemTarget].push({ nome: name, tipo: document.getElementById('modalTypeSelect').value, status: document.getElementById('modalStatusSelect').value, arquivada: false });
+                    window.switchTab(window.newItemTarget); window.closeItemModal(); window.triggerCloudSave();
+                };
+            } else {
+                const name = document.getElementById('selectComunidade').value;
+                if(name === "null") return;
+                const item = Object.values(window.listas).flat().find(x => x && x.nome === name);
+                let currentPhase = "";
+                for(let k in window.listas) if(window.listas[k].some(x => x.nome === name)) currentPhase = k;
+                document.getElementById('modalInput').value = item.nome;
+                document.getElementById('modalStatusSelect').value = item.status;
+                document.getElementById('modalTypeSelect').value = item.tipo;
+                window.setNewItemTarget(currentPhase);
+                document.getElementById('saveItemBtn').onclick = () => {
+                    const novoNome = document.getElementById('modalInput').value.trim();
+                    if(!novoNome) return;
+                    window.listas[currentPhase] = window.listas[currentPhase].filter(x => x && x.nome !== name);
+                    window.listas[window.newItemTarget].push({ nome: novoNome, tipo: document.getElementById('modalTypeSelect').value, status: document.getElementById('modalStatusSelect').value, arquivada: false });
+                    window.tarefasGlobal.forEach(t => { if(t.contexto === name) t.contexto = novoNome; });
+                    window.switchTab(window.newItemTarget); window.closeItemModal(); window.triggerCloudSave();
+                };
+            }
+            m.classList.remove('hidden');
+        };
+
+        window.loadExampleData = () => { window.listas = { prospec: [ { nome: "Projeto Exemplo", status: "Ativa", tipo: "Assessoria", arquivada: false } ], ativacao: [], implem: [], gestao: [] }; window.switchTab('prospec'); window.triggerCloudSave(); };
+        window.saveData = () => { const blob = new Blob([JSON.stringify({ listas: window.listas, tarefasGlobal: window.tarefasGlobal, activeUserName: window.activeUserName })], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `monitor_backup.json`; link.click(); };
+        window.loadData = () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { const d = JSON.parse(ev.target.result); window.listas = d.listas; window.tarefasGlobal = d.tarefasGlobal || []; window.activeUserName = d.activeUserName || ""; window.switchTab(window.currentTab); window.triggerCloudSave(); }; r.readAsText(e.target.files[0]); }; input.click(); };
+        
+        window.closeTaskModal = () => document.getElementById('taskModal').classList.add('hidden');
+        window.closeItemModal = () => document.getElementById('itemModal').classList.add('hidden');
+        window.closePillarDetail = () => document.getElementById('pillarDetailModal').classList.add('hidden');
+
+        window.updateStats = () => { 
+            if(!window.listas) return;
+            const flat = Object.values(window.listas).flat().filter(c => c && !c.arquivada);
+            const totalAtivas = flat.filter(c => c.status === 'Ativa').length;
+            const totalStandby = flat.filter(c => c.status === 'Stand by').length;
+            const ativasEl = document.getElementById('countAtivas');
+            const standByEl = document.getElementById('countStandBy');
+            const vagosEl = document.getElementById('countVagos');
+            if(ativasEl) ativasEl.innerText = totalAtivas;
+            if(standByEl) standByEl.innerText = totalStandby;
+            if(vagosEl) vagosEl.innerText = Math.max(0, 7 - totalAtivas);
+            const tTodos = document.getElementById('count-tab-todos');
+            if (tTodos) tTodos.innerText = flat.length;
+            ['prospec', 'ativacao', 'implem', 'gestao'].forEach(k => {
+                const el = document.getElementById(`count-tab-${k}`);
+                if (el) el.innerText = window.listas[k].filter(i => !i.arquivada).length;
+            });
+        };
+
+        function renderSaude() {
+            const c = document.getElementById('communityList'); 
+            if(!c) return; 
+            c.innerHTML = '';
+            if(!window.listas) return;
+
+            const select = document.createElement('select');
+            select.className = "w-full max-w-md bg-white border border-slate-200 card-shadow rounded-2xl px-6 py-3 outline-none text-slate-700 font-bold text-sm text-left";
+            select.onchange = (e) => { 
+                if(e.target.value !== "null") { 
+                    document.getElementById('selectComunidade').value = e.target.value; 
+                    window.onProjectSelectionChange(); 
+                } 
+            };
+
+            if (window.currentTab === 'todos') {
+                select.innerHTML = '<option value="null">Ecossistema Geral...</option>';
+                ['prospec', 'ativacao', 'implem', 'gestao'].forEach(k => {
+                    const items = window.listas[k].filter(i => i && !i.arquivada);
+                    if(items.length > 0) {
+                        const group = document.createElement('optgroup'); 
+                        group.label = tabLabels[k];
+                        items.forEach(i => {
+                            const opt = document.createElement('option');
+                            opt.value = i.nome;
+                            opt.innerText = `${statusIcons[i.status]} ${i.nome}`;
+                            group.appendChild(opt);
+                        });
+                        select.appendChild(group);
+                    }
+                });
+            } else {
+                select.innerHTML = `<option value="null">Filtro em ${tabLabels[window.currentTab]}...</option>`;
+                const items = window.listas[window.currentTab].filter(i => i && !i.arquivada);
+                items.forEach(i => {
+                    const opt = document.createElement('option');
+                    opt.value = i.nome;
+                    opt.innerText = `${statusIcons[i.status]} ${i.nome}`;
+                    select.appendChild(opt);
+                });
+            }
+            c.appendChild(select);
+        }
+
+        function getFunnelColor(c) { 
+            if(c.includes('ATENÇÃO')||c.includes('ESTRATÉGIA')||c.includes('ALINHAMENTO')) return 'border-sky-400'; 
+            if(c.includes('INTERESSE')||c.includes('OPERAÇÃO')||c.includes('COOPERAÇÃO')) return 'border-amber-400'; 
+            if(c.includes('DESEJO')||c.includes('SUPORTE')||c.includes('VALOR')) return 'border-rose-400'; 
+            return 'border-emerald-400'; 
+        }
+        window.handleDeleteClick = () => { document.getElementById('editActions').classList.add('hidden'); document.getElementById('deleteWarning').classList.remove('hidden'); };
+        window.confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmDeleteBtn) confirmDeleteBtn.onclick = () => { const n = document.getElementById('selectComunidade').value; Object.keys(window.listas).forEach(k => window.listas[k] = window.listas[k].filter(x => x && x.nome !== n)); window.tarefasGlobal = window.tarefasGlobal.filter(t => t.contexto !== n); window.switchTab(window.currentTab); window.closeItemModal(); window.triggerCloudSave(); };
+
+        window.onload = () => { document.getElementById('userModal')?.classList.remove('hidden'); };
+    </script>
+</body>
+</html>
