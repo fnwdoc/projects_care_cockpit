@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-pt">
 <head>
@@ -405,23 +404,30 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app, auth, db;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-monitor';
+        
+        try {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            window.db = db; window.auth = auth; window.appId = appId; window.user = null;
 
-        window.db = db; window.auth = auth; window.appId = appId; window.user = null;
-
-        onAuthStateChanged(auth, (u) => {
-            window.user = u;
-            if (u) { updateCloudIndicator('sync', 'Nuvem Ativa'); loadFromCloud(); }
-            else { signInAnonymously(auth); }
-        });
+            onAuthStateChanged(auth, (u) => {
+                window.user = u;
+                if (u) { updateCloudIndicator('sync', 'Nuvem Ativa'); loadFromCloud(); }
+                else { signInAnonymously(auth); }
+            });
+        } catch (e) {
+            console.warn("Firebase config not found or invalid. Running in offline mode.");
+            window.user = { uid: "offline-user" }; // Dummy user for offline mode
+            updateCloudIndicator('sync', 'Modo Offline');
+        }
 
         // Expose helper functions to window for module usage
         window.saveToFirestore = async () => {
-             if (!window.user) return;
+             if (!window.user || !db) return;
              try {
                 const userDoc = doc(db, 'artifacts', appId, 'users', window.user.uid, 'state', 'main');
                 await setDoc(userDoc, { listas: window.listas, tarefasGlobal: window.tarefasGlobal, activeUserName: window.activeUserName });
@@ -430,7 +436,7 @@
         };
 
         window.loadFromFirestore = async () => {
-            if (!window.user) return;
+            if (!window.user || !db) return;
             const userDoc = doc(db, 'artifacts', appId, 'users', window.user.uid, 'state', 'main');
             const snap = await getDoc(userDoc);
             if (snap.exists()) {
