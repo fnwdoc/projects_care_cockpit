@@ -405,7 +405,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = {"apiKey": "fake"};
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -420,6 +420,16 @@
         });
 
         window.triggerCloudSave = () => {
+            // Local Storage Backup
+            try {
+                localStorage.setItem('monitor_backup_local', JSON.stringify({ 
+                    listas: window.listas, 
+                    tarefasGlobal: window.tarefasGlobal, 
+                    activeUserName: window.activeUserName,
+                    timestamp: Date.now()
+                }));
+            } catch(e) { console.error('Erro ao salvar localmente', e); }
+
             if (!window.user) return;
             updateCloudIndicator('saving', 'Sincronizando...');
             setTimeout(async () => {
@@ -895,7 +905,27 @@
         window.confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if (confirmDeleteBtn) confirmDeleteBtn.onclick = () => { const n = document.getElementById('selectComunidade').value; Object.keys(window.listas).forEach(k => window.listas[k] = window.listas[k].filter(x => x && x.nome !== n)); window.tarefasGlobal = window.tarefasGlobal.filter(t => t.contexto !== n); window.switchTab(window.currentTab); window.closeItemModal(); window.triggerCloudSave(); };
 
-        window.onload = () => { document.getElementById('userModal')?.classList.remove('hidden'); };
+        window.onload = () => { 
+            const localData = localStorage.getItem('monitor_backup_local');
+            if (localData) {
+                if(confirm('Encontramos dados salvos anteriormente. Deseja restaurar o último status?')) {
+                    try {
+                        const d = JSON.parse(localData);
+                        window.listas = d.listas || { prospec: [], ativacao: [], implem: [], gestao: [] };
+                        window.tarefasGlobal = d.tarefasGlobal || [];
+                        window.activeUserName = d.activeUserName || "";
+                        if (window.activeUserName) {
+                            const dEl = document.getElementById('displayUserName');
+                            if (dEl) dEl.innerText = `Olá, ${window.activeUserName}!`;
+                            document.getElementById('userModal')?.classList.add('hidden');
+                        }
+                        window.switchTab(window.currentTab);
+                        return;
+                    } catch(e) { console.error("Erro ao restaurar backup local", e); }
+                }
+            }
+            document.getElementById('userModal')?.classList.remove('hidden'); 
+        };
     </script>
 </body>
 </html>
