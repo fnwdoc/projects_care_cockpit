@@ -930,9 +930,16 @@
         window.onload = () => {
             const localData = localStorage.getItem('monitor_backup_local');
             if (localData) {
-                if(confirm('Encontramos dados salvos anteriormente. Deseja restaurar o último status?')) {
-                    try {
-                        const d = JSON.parse(localData);
+                try {
+                    const d = JSON.parse(localData);
+                    const date = d.timestamp ? new Date(d.timestamp).toLocaleString() : 'Data desconhecida';
+                    const user = d.activeUserName || 'Usuário desconhecido';
+                    const taskCount = (d.tarefasGlobal || []).length;
+                    const projectCount = Object.values(d.listas || {}).flat().length;
+
+                    const msg = `Encontramos um backup local de: ${date}\n\n👤 Usuário: ${user}\n📝 Tarefas: ${taskCount}\n📂 Projetos: ${projectCount}\n\nDeseja restaurar este status?`;
+
+                    if(confirm(msg)) {
                         window.listas = d.listas || { prospec: [], ativacao: [], implem: [], gestao: [] };
                         window.tarefasGlobal = d.tarefasGlobal || [];
                         window.activeUserName = d.activeUserName || "";
@@ -943,8 +950,8 @@
                         }
                         window.switchTab(window.currentTab);
                         return;
-                    } catch(e) { console.error("Erro ao restaurar backup local", e); }
-                }
+                    }
+                } catch(e) { console.error("Erro ao analisar backup local", e); }
             }
             document.getElementById('userModal')?.classList.remove('hidden');
         };
